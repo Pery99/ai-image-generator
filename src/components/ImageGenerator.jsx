@@ -3,7 +3,7 @@ import { generateImage } from "../services/imageAPI";
 import { useApiKey } from "../context/ApiKeyContext";
 
 const ImageGenerator = () => {
-  const { apiKey, updateApiKey } = useApiKey();
+  const { apiKey, updateApiKey, clearApiKey, validateApiKey } = useApiKey();
   const [isApiKeyValid, setIsApiKeyValid] = useState(!!apiKey);
   const [showApiKeyInput, setShowApiKeyInput] = useState(!apiKey);
   const [prompt, setPrompt] = useState("");
@@ -58,14 +58,31 @@ const ImageGenerator = () => {
     }
   };
 
+  const handleRemoveApiKey = () => {
+    clearApiKey();
+    setIsApiKeyValid(false);
+    setShowApiKeyInput(true);
+    setGeneratedImage(null);
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 glass-effect p-8 md:p-12 rounded-3xl relative overflow-hidden shadow-glass">
       <div className="flex flex-col gap-8 relative">
-        {showApiKeyInput && (
+        {showApiKeyInput ? (
           <div className="space-y-2">
-            <label className="text-sm uppercase tracking-wider text-gray-400 font-medium">
-              OpenAI API Key
-            </label>
+            <div className="flex justify-between items-center">
+              <label className="text-sm uppercase tracking-wider text-gray-400 font-medium">
+                OpenAI API Key
+              </label>
+              {apiKey && (
+                <button
+                  onClick={handleRemoveApiKey}
+                  className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                >
+                  Remove Key
+                </button>
+              )}
+            </div>
             <div className="relative">
               <input
                 type="password"
@@ -75,8 +92,9 @@ const ImageGenerator = () => {
                 className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white font-inter text-sm focus:outline-none focus:border-indigo-500/50 focus:shadow-[0_0_20px_rgba(125,137,255,0.2)] transition-all pr-24"
               />
               <button
-                onClick={() => setShowApiKeyInput(false)}
+                onClick={() => validateApiKey(apiKey) && setShowApiKeyInput(false)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-1 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                disabled={!validateApiKey(apiKey)}
               >
                 {isApiKeyValid ? 'Change' : 'Save'}
               </button>
@@ -93,6 +111,24 @@ const ImageGenerator = () => {
                 OpenAI Dashboard
               </a>
             </p>
+          </div>
+        ) : (
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-gray-400">API Key: ••••••••</span>
+            <div className="space-x-4">
+              <button
+                onClick={() => setShowApiKeyInput(true)}
+                className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+              >
+                Change
+              </button>
+              <button
+                onClick={handleRemoveApiKey}
+                className="text-xs text-red-400 hover:text-red-300 transition-colors"
+              >
+                Remove
+              </button>
+            </div>
           </div>
         )}
 
