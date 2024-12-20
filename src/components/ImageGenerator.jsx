@@ -1,24 +1,42 @@
 import { useState } from "react";
+import { generateImage } from "../services/imageAPI";
+import { useApiKey } from "../context/ApiKeyContext";
 
 const ImageGenerator = () => {
+  const { apiKey, updateApiKey } = useApiKey();
+  const [isApiKeyValid, setIsApiKeyValid] = useState(!!apiKey);
+  const [showApiKeyInput, setShowApiKeyInput] = useState(!apiKey);
   const [prompt, setPrompt] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [generatedImage, setGeneratedImage] = useState(null);
+  const [error, setError] = useState(null);
   const [settings, setSettings] = useState({
     style: "realistic",
-    size: "512x512",
-    samples: 1,
   });
 
   const handleGenerate = async () => {
-    if (!prompt) return;
-
+    if (!prompt || !apiKey) return;
+    
     setIsLoading(true);
-    // Add your AI image generation API call here
-    setTimeout(() => {
+    setError(null);
+
+    try {
+      const imageUrl = await generateImage(prompt, settings.style, apiKey);
+      if (!imageUrl) {
+        throw new Error('Failed to generate image');
+      }
+      setGeneratedImage(imageUrl);
+      setIsApiKeyValid(true);
+    } catch (err) {
+      setError(err.message || "Failed to generate image. Please try again.");
+      if (err.message.includes('API key')) {
+        setIsApiKeyValid(false);
+        setShowApiKeyInput(true);
+      }
+      console.error('Generation error:', err);
+    } finally {
       setIsLoading(false);
-      setGeneratedImage("https://placeholder.com/512x512");
-    }, 2000);
+    }
   };
 
   const handleDownload = async () => {
@@ -43,6 +61,41 @@ const ImageGenerator = () => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 glass-effect p-8 md:p-12 rounded-3xl relative overflow-hidden shadow-glass">
       <div className="flex flex-col gap-8 relative">
+        {showApiKeyInput && (
+          <div className="space-y-2">
+            <label className="text-sm uppercase tracking-wider text-gray-400 font-medium">
+              OpenAI API Key
+            </label>
+            <div className="relative">
+              <input
+                type="password"
+                value={apiKey}
+                onChange={(e) => updateApiKey(e.target.value)}
+                placeholder="Enter your OpenAI API key..."
+                className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white font-inter text-sm focus:outline-none focus:border-indigo-500/50 focus:shadow-[0_0_20px_rgba(125,137,255,0.2)] transition-all pr-24"
+              />
+              <button
+                onClick={() => setShowApiKeyInput(false)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-1 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+              >
+                {isApiKeyValid ? 'Change' : 'Save'}
+              </button>
+            </div>
+            <p className="text-xs text-gray-500">
+              Your API key is stored locally and never sent to our servers.
+              Get your API key from{' '}
+              <a
+                href="https://platform.openai.com/api-keys"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-indigo-400 hover:text-indigo-300 transition-colors"
+              >
+                OpenAI Dashboard
+              </a>
+            </p>
+          </div>
+        )}
+
         <div className="space-y-2">
           <label className="text-sm uppercase tracking-wider text-gray-400 font-medium">
             Your Vision
@@ -58,35 +111,19 @@ const ImageGenerator = () => {
         <div className="space-y-6">
           <div className="space-y-2">
             <label className="text-sm uppercase tracking-wider text-gray-400 font-medium">
-              Settings
+              Style
             </label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-xs text-gray-500">Style</label>
-                <select
-                  value={settings.style}
-                  onChange={(e) => setSettings({ ...settings, style: e.target.value })}
-                  className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white cursor-pointer hover:border-indigo-500/50 transition-all text-sm"
-                >
-                  <option value="realistic">Realistic</option>
-                  <option value="artistic">Artistic</option>
-                  <option value="abstract">Abstract</option>
-                </select>
-              </div>
-              
-              <div className="space-y-1">
-                <label className="text-xs text-gray-500">Size</label>
-                <select
-                  value={settings.size}
-                  onChange={(e) => setSettings({ ...settings, size: e.target.value })}
-                  className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white cursor-pointer hover:border-indigo-500/50 transition-all text-sm"
-                >
-                  <option value="256x256">256x256</option>
-                  <option value="512x512">512x512</option>
-                  <option value="1024x1024">1024x1024</option>
-                </select>
-              </div>
-            </div>
+            <select
+              value={settings.style}
+              onChange={(e) => setSettings({ ...settings, style: e.target.value })}
+              className="w-full p-4 bg-black/20 border border-white/10 rounded-xl text-white cursor-pointer hover:border-indigo-500/50 transition-all text-sm"
+            >
+              <option value="realistic">Realistic</option>
+              <option value="artistic">Artistic</option>
+              <option value="abstract">Abstract</option>
+              <option value="anime">Anime</option>
+              <option value="cinematic">Cinematic</option>
+            </select>
           </div>
 
           <button
@@ -115,14 +152,19 @@ const ImageGenerator = () => {
               <div className="w-14 h-14 border-4 border-white/10 border-t-indigo-500 rounded-full animate-spin drop-shadow-[0_0_10px_rgba(125,137,255,0.5)]"></div>
             </div>
           )}
-          {generatedImage && !isLoading && (
+          {error && !isLoading && (
+            <div className="text-red-400 text-center p-8">
+              <p>{error}</p>
+            </div>
+          )}
+          {generatedImage && !isLoading && !error && (
             <img
               src={generatedImage}
               alt="Generated"
               className="max-w-full h-auto transition-all duration-300 hover:scale-102 rounded-lg"
             />
           )}
-          {!generatedImage && !isLoading && (
+          {!generatedImage && !isLoading && !error && (
             <div className="text-gray-500 text-center p-8">
               <p className="text-lg font-light">Your generated image will appear here</p>
             </div>
